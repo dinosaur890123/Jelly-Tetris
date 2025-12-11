@@ -86,4 +86,41 @@ class Stick {
             this.p2.pos.y += offsetY;
         }
     }
+    draw(ctx, color) {
+        ctx.beginPath();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.moveTo(this.p1.pos.x, this.p1.pos.y);
+        ctx.lineTo(this.p2.pos.x, this.p2.pos.y);
+        ctx.stroke();
+    }
+}
+class JellyShape {
+    constructor(x, y, type) {
+        this.particles = [];
+        this.sticks = [];
+        this.type = type;
+        this.color = this.getColor(type);
+        this.glow = this.getGlow(type);
+        this.settled = false;
+        this.buildShape(x, y, type);
+    }
+    getColor(type) {
+        const colors = {I: '#00f0f0', O: '#f0f000', T: '#a000f0', S: '#00f000', Z: '#f00000', J: '#0000f0', L: '#f0a000'};
+        return colors[type] || '#ffffff';
+    }
+    getGlow(type) {
+        return this.getColor(type);
+    }
+    buildShape(startX, startY, type) {
+        const shapes = {
+            O: [[0,0], [1,0], [0,1], [1,1]],
+            I: [[0,0], [0,1],[0,2], [0,3]],
+            T: [[0,0], [1,0], [2,0], [1,1]],
+            L: [[0,0], [0,1], [0,2], [1,2]],
+            J: [[1,0], [1,1], [1,2], [0,2]],
+            S: [[1,0], [2,0], [0,1], [1,1]],
+            Z: [[0,0], [1,0], [1,1], [2,1]]
+        }
+    }
 }
