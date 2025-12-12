@@ -121,6 +121,52 @@ class JellyShape {
             J: [[1,0], [1,1], [1,2], [0,2]],
             S: [[1,0], [2,0], [0,1], [1,1]],
             Z: [[0,0], [1,0], [1,1], [2,1]]
-        }
+        };
+        const blocks = shapes[type] || shapes['O'];
+        const s = CONFIG.cellSize;
+        let nodes = {};
+        blocks.forEach(b => {
+            const bx = b[0], by = b[1];
+            const corners = [
+                [bx, by], [bx+1, by], [bx+1, by+1], [bx, by+1]
+            ];
+            corners.forEach(c => {
+                const key = `${c[0]},${c[1]}`;
+                if (!nodes[key]) {
+                    const px = startX + c[0] * s;
+                    const py = startY + c[1] * s;
+                    const p = new Particle(px, py);
+                    this.particles.push(p);
+                    nodes[key] = this.particles.length - 1;
+                }
+            });
+        });
+        const connectedPairs = new Set();
+        const addStick = (idx1, idx2, isCross = false) => {
+            const key = idx1 < idx2 ? `${idx1}-${idx2}` : `${idx2}-${idx1}`;
+            if (connectedPairs.has(key)) return;
+            this.sticks.push(new Stick(
+                this.particles[idx1],
+                this.particles[idx2], 
+                isCross ? CONFIG.stiffness * 0.5 : CONFIG.stiffness
+            ));
+            connectedPairs.add(key);
+        };
+        blocks.forEach(b => {
+            const bx = b[0], by = b[1];
+            const tl = nodes[`${bx},${by}`];
+            const tr = nodes[`${bx+1},${by}`];
+            const br = nodes[`${bx+1},${by+1}`];
+            const bl = nodes[`${bx},${by+1}`];
+            addStick(tl, tr);
+            addStick(tr, br);
+        });
+    }
+    rotate() {
+        let cx = 0, cy = 0;
+        this.particles.forEach(p => {cx += p.pos.x; cy += p.pos.y;});
+        cx /= this.particles.length;
+        cy /= this.particles.length;
+        const center = {x: cx, y: cy};
     }
 }
