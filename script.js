@@ -168,5 +168,40 @@ class JellyShape {
         cx /= this.particles.length;
         cy /= this.particles.length;
         const center = {x: cx, y: cy};
+        this.particles.forEach(p => {
+            const newPos = Vec2.rotate(p.pos, center, Math.PI / 2);
+            const vel = Vec2.sub(p.pos, p.oldPos);
+            const rotVel = Vec2.rotate(vel, {x:0, y:0}, Math.PI/2);
+            p.pos = newPos;
+            p.oldPos = Vec2.sub(newPos, rotVel);
+        });
     }
+    move(x, y) {
+        this.particles.forEach(p => {
+            p.pos.x += x;
+            p.pos.y += y;
+            p.oldPos.x += x;
+            p.oldPos.y += y;
+        });
+    }
+    draw(ctx) {
+        ctx.fillStyle = this.color;
+        ctx.strokeStyle = this.color;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = this.glow;
+        ctx.beginPath();
+        this.sticks.forEach(s => {
+            ctx.moveTo(s.p1.pos.x, s.p1.pos.y);
+            ctx.lineTo(s.p2.pos.x, s.p2.pos.y);
+        });
+        ctx.stroke();
+        ctx.fillStyle = '#fff';
+        this.particles.forEach(p => {
+            ctx.beginPath();
+            ctx.arc(p.pos.x, p.pos.y, 2, 0, Math.PI*2);
+            ctx.fill();
+        });
+        ctx.shadowBlur = 0;
+    }
+    
 }
