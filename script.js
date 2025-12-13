@@ -18,7 +18,7 @@ const Vec2 = {
         const cos = Math.cos(angle);
         const sin = Math.sin(angle);
         const dx = v.x - center.x;
-        const dy = v.y - enter.y;
+        const dy = v.y - center.y;
         return{
             x: center.x + (dx * cos - dy * sin),
             y: center.y + (dx * sin + dy * cos)
@@ -203,5 +203,179 @@ class JellyShape {
         });
         ctx.shadowBlur = 0;
     }
-    
 }
+class Game {
+    constructor() {
+        this.canvas = document.getElementById('world');
+        this.ctx = this.canvas.getContext('2d');
+        this.width = CONFIG.cols * CONFIG.cellSize;
+        this.height = CONFIG.rows * CONFIG.cellSize;
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
+        this.shapes = [];
+        this.activeShape = null;
+        this.score = 0;
+        this.keys = {};
+        window.addEventListener('keydown', e => this.handleInput(e));
+        window.addEventListener('keyup', e => this.keys[e.code] = false);
+        this.spawn();
+        this.loop();
+    }
+    spawn() {
+        const types = ['I', 'O', 'T', 'S', 'Z', 'J', 'L'];
+        const type = types[Math.floor(Math.random() * types.length)];
+        this.activeShape = new JellyShape(this.width/2 - CONFIG.cellSize, -CONFIG.cellSize * 2, type);
+        this.shapes.push(this.activeShape);
+    }
+    handleInput(e) {
+        this.keys[e.code] = true;
+        if (!this.activeShape) return;
+        if (e.code === 'ArrowUp') {
+            this.activeShape.rotate();
+        }
+    }
+    applyInput() {
+        if (!this.activeShape) return;
+        const force = 1.5;
+        if (this.keys['ArrowLeft']) {
+            this.activeShape.particles.forEach(p => p.pos.x -= force);
+        }
+        if (this.keys['ArrowRight']) {
+            this.activeShape.particles.forEach(p => p.pos.x += force);
+        }
+        if (this.keys['ArrowDown']) {
+            this.activeShape.particles.forEach(p => p.pos.y += force);
+        }
+    }
+    resolveCollisions() {
+        const separationDist = CONFIG.cellSize * 0.4;
+        if (!this.activeShape) return;
+        for (let s of this.shapes) {
+            if (s === this.activeShape) {
+                if (s === this.activeShape) continue;
+                for (let p1 of this.activeShape.particles) {
+                    for (let p2 of s.particles) {
+                        const dx = p1.pos.x - p2.pos.x;
+                        const dy = p1.pos.y - p2.pos.y;
+                        const distSq = dx*dx + dy*dy;
+                        const minDist = 15;
+                        if (distSq < minDist * minDist && distSq > 0) {
+                            const dist = Math.sqrt(distSq);
+                            const pen = (minDist - dist) * 0.5;
+                            const nx = dx / dist;
+                            const ny = dy / dist;
+                            p1.pos.x += nx * pen;
+                            p1.pos.y += ny * pen;
+                            p2.pos.x -= nx * pen;
+                            p2.pos.y -= ny * pen;
+                            const vxRel = (p1.pos.x - p1.oldPos.x) - (p2.pos.x - p2.oldPos.x);
+                            const vyRel = (p1.pos.y - p1.oldPos.y) - (p2.pos.y - p2.oldPos.y);
+                            p1.pos.x -= vxRel * 0.1;
+                            p1.pos.y -= vyRel * 0.1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    checkSettled() {
+        if (!this.activeShape) return;
+        let maxY = 0;
+        let moving = false;
+        for (let p of this.activeShape.particles) {
+            if (p.pos.y > maxY) maxY = p.pos.y;
+            const vel = Math.hypot(p.pos.x - p.oldPos.x, p.pos.y - p.oldPos.y);
+            if (vel > 0.3) moving = true;
+        }
+        if (!moving && maxY > this.height - 10) {
+            this.lockShape();
+            return;
+        }
+    }
+    lockTimer = 0;
+    updateLockLogic() {
+        if (!this.activeShape) return;
+        let totalVel = 0;
+        let touchingFloor = false;
+        for (let p of this.activeShape.particles) {
+            totalVel += Math.hypot(p.pos.x - p.oldPos.x, p.pos.y - p.oldPos.y);
+            if (p.pos.y >= this.height - 5) touchingFloor = true;
+        }
+        if (totalVel < 2.0) {
+            this.lockTimer++;
+        } else {
+            this.lockTimer = 0;
+        }
+        if (this.lockTimer > 40) {
+            this.lockShape();
+        }
+    }
+    lockShape() {
+        this.activeShape.settled = true;
+        this.activeShape = null;
+        this.lockTimer = 0;
+        this.checkLines();
+        this.spawn();
+    }
+    checkLines() {
+        const sliceHeight = CONFIG.cellSize;
+        const threshold = CONFIG.cols * 2;
+        for (let y = this.height - sliceHeight; y > 0; y -= sliceHeight) {
+            let count = 0;
+            for (let s of this.shapes) {
+                for (let p of s.particles) {
+                    if (p.pos.y >= y && p.pos.y < y + sliceHeight) {
+                        count++;
+                    }
+                }
+            }
+            if (count > 25) {
+                this.score += 100;
+                document.getElementById('score-display').innerText = `Score: ${this.score}`;
+                this.explodeSlice(y, sliceHeight);
+            }
+        }
+    }
+    explodeSlice(y, height) {
+        for (let s of this.shapes) {
+            const particlesToRemove = new Set();
+            s.particles.forEach(p => {
+                if (p.pos.y >= y && p.pos.y < y + height) {
+                    p.pos.y = -1000;
+                    p.pinned = true;
+                }
+            });
+            s.sticks = s.sticks.filter(stick => 
+                !particlesToRemove.has(stick.p1) && !particlesToRemove.has(stick.p2)
+            );
+            s.particles = s.particles.filter(p => !particlesToRemove.has(p));
+        }
+    }
+    update() {
+        this.applyInput();
+        this.updateLockLogic();
+        for (let i = 0; i < CONFIG.iterationCount; i++) {
+            this.shapes.forEach(shape => {
+                shape.particles.forEach(p => {
+                    p.update();
+                    p.constrainBounds(this.width, this.height);
+                });
+                shape.sticks.forEach(s => s.update());
+            });
+            this.resolveCollisions();
+        }
+    }
+    draw() {
+        this.ctx.fillStyle = 'rgba(10, 10, 10, 0.3)';
+        this.ctx.fillRect(0, 0, this.width, this.height);
+        this.shapes.forEach(s => s.draw(this.ctx));
+    }
+    loop() {
+        this.update();
+        this.draw();
+        requestAnimationFrame(() => this.loop());
+    }
+}
+window.onload = () => {
+    new Game();
+};
