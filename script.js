@@ -160,6 +160,10 @@ class JellyShape {
             const bl = nodes[`${bx},${by+1}`];
             addStick(tl, tr);
             addStick(tr, br);
+            addStick(br, bl);
+            addStick(bl, tl);
+            addStick(tl, br, true);
+            addStick(tr, bl, true);
         });
     }
     rotate() {
