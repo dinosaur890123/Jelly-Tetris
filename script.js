@@ -220,8 +220,17 @@ class Game {
         this.activeShape = null;
         this.score = 0;
         this.keys = {};
+        this.mouseX = 0;
+        this.mouseY = 0;
+        this.draggedParticle = null;
+        this.isMouseDown = false;
         window.addEventListener('keydown', e => this.handleInput(e));
         window.addEventListener('keyup', e => this.keys[e.code] = false);
+        this.canvas.addEventListener('mousemove', e => this.handleMouseMove(e));
+        this.canvas.addEventListener('mousedown', e => this.handleMouseDown(e));
+        this.canvas.addEventListener('touchmove', e => this.handleTouchMove(e), {passive: false});
+        this.canvas.addEventListener('touchstart', e => this.handleTouchStart(e), {passive: false});
+        window.addEventListener('touchend', e => this.handleMouseUp(e));
         this.spawn();
         this.loop();
     }
@@ -230,6 +239,34 @@ class Game {
         const type = types[Math.floor(Math.random() * types.length)];
         this.activeShape = new JellyShape(this.width/2 - CONFIG.cellSize, -CONFIG.cellSize * 2, type);
         this.shapes.push(this.activeShape);
+    }
+    getMousePos(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        return {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top
+        };
+    }
+    getTouchPos() {
+        const rect = this.canvas.getBoundingClientRect();
+        const touch = e.touches[0];
+        return {
+            x: touch.clientX - rect.left,
+            y: touch.clientY - rect.top
+        };
+    }
+    handleMouseMove(e) {
+        const pos = this.getMousePos(e);
+        this.mouseX = pos.x;
+        this.mouseY = pos.y;
+    }
+    getTouchPos() {
+        const rect = this.canvas.getBoundingClientRect();
+        const touch = e.touches[0];
+        return {
+            x: touch.clientX - rect.left,
+            y: touch.clientY - rect.top
+        };
     }
     handleInput(e) {
         this.keys[e.code] = true;
