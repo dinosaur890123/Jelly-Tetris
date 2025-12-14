@@ -456,6 +456,10 @@ class Game {
             this.shapes.forEach(shape => {
                 shape.particles.forEach(p => {
                     p.update();
+                    if (p === this.draggedParticle) {
+                        p.pos.x = this.mouseX;
+                        p.pos.y = this.mouseY;
+                    }
                     p.constrainBounds(this.width, this.height);
                 });
                 shape.sticks.forEach(s => s.update());
