@@ -268,6 +268,63 @@ class Game {
             y: touch.clientY - rect.top
         };
     }
+    handleMouseMove(e) {
+        const pos = this.getMousePos(e);
+        this.mouseX = pos.x;
+        this.mouseY = pos.y;
+    }
+    handleTouchMove() {
+        e.preventDefault();
+        const pos = this.getTouchPos(e);
+        this.mouseX = pos.x;
+        this.mouseY = pos.y;
+    }
+    handleMouseDown(e) {
+        this.isMouseDown = true;
+        const pos = this.getMousePos(e);
+        this.mouseX = pos.x;
+        this.mouseY = pos.y;
+        this.draggedParticle = this.findNearestParticle(this.mouseX, this.mouseY);
+    }
+    handleTouchStart() {
+        e.preventDefault();
+        this.isMouseDown = true;
+        const pos = this.getTouchPos(e);
+        this.mouseX = pos.x;
+        this.mouseY = pos.y;
+        this.draggedParticle = this.findNearestParticle(this.mouseX, this.mouseY);
+    }
+    handleMouseUp(e) {
+        this.isMouseDown = false;
+        this.draggedParticle = null;
+    }
+    findNearestParticle(x, y) {
+        let nearest = null;
+        let minDistSq = 30 * 30;
+        if (this.activeShape) {
+            for (let p of this.activeShape.particles) {
+                const dx = p.pos.x - x;
+                const dy = p.pos.y - y;
+                const distSq = dx*dx + dy*dy;
+                if (distSq < minDistSq) {
+                    minDistSq = distSq;
+                    nearest = p;
+                }
+            }
+        }
+        for (let s of this.shapes) {
+            for (let p of s.particles) {
+                const dx = p.pos.x - x;
+                const dy = p.pos.y - y;
+                const distSq = dx*dx + dy*dy;
+                if (distSq < minDistSq) {
+                    minDistSq = distSq;
+                    nearest = p;
+                }
+            }
+        }
+        return nearest;
+    }
     handleInput(e) {
         this.keys[e.code] = true;
         if (!this.activeShape) return;
@@ -410,6 +467,19 @@ class Game {
         this.ctx.fillStyle = 'rgba(10, 10, 10, 0.3)';
         this.ctx.fillRect(0, 0, this.width, this.height);
         this.shapes.forEach(s => s.draw(this.ctx));
+        if (this.draggedParticle) {
+            this.ctx.beginPath();
+            this.ctx.strokeStyle = '#ffffff';
+            this.ctx.setLineDash([5, 5]);
+            this.ctx.moveTo(this.draggedParticle.pos.x, this.draggedParticle.pos.y);
+            this.ctx.lineTo(this.mouseX, this.mouseY);
+            this.ctx.stroke();
+            this.ctx.setLineDash([]);
+            this.ctx.beginPath();
+            this.ctx.arc(this.mouseX, this.mouseY, 10, 0, Math.PI*2);
+            this.ctx.strokeStyle = '#ffffff';
+            this.ctx.stroke();
+        }
     }
     loop() {
         this.update();
