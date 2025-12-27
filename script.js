@@ -247,7 +247,7 @@ class Game {
             y: e.clientY - rect.top
         };
     }
-    getTouchPos() {
+    getTouchPos(e) {
         const rect = this.canvas.getBoundingClientRect();
         const touch = e.touches[0];
         return {
@@ -260,20 +260,7 @@ class Game {
         this.mouseX = pos.x;
         this.mouseY = pos.y;
     }
-    getTouchPos() {
-        const rect = this.canvas.getBoundingClientRect();
-        const touch = e.touches[0];
-        return {
-            x: touch.clientX - rect.left,
-            y: touch.clientY - rect.top
-        };
-    }
-    handleMouseMove(e) {
-        const pos = this.getMousePos(e);
-        this.mouseX = pos.x;
-        this.mouseY = pos.y;
-    }
-    handleTouchMove() {
+    handleTouchMove(e) {
         e.preventDefault();
         const pos = this.getTouchPos(e);
         this.mouseX = pos.x;
@@ -286,7 +273,7 @@ class Game {
         this.mouseY = pos.y;
         this.draggedParticle = this.findNearestParticle(this.mouseX, this.mouseY);
     }
-    handleTouchStart() {
+    handleTouchStart(e) {
         e.preventDefault();
         this.isMouseDown = true;
         const pos = this.getTouchPos(e);
@@ -346,32 +333,32 @@ class Game {
         }
     }
     resolveCollisions() {
-        const separationDist = CONFIG.cellSize * 0.4;
         if (!this.activeShape) return;
-        for (let s of this.shapes) {
-            if (s === this.activeShape) {
-                if (s === this.activeShape) continue;
-                for (let p1 of this.activeShape.particles) {
-                    for (let p2 of s.particles) {
-                        const dx = p1.pos.x - p2.pos.x;
-                        const dy = p1.pos.y - p2.pos.y;
-                        const distSq = dx*dx + dy*dy;
-                        const minDist = 15;
-                        if (distSq < minDist * minDist && distSq > 0) {
-                            const dist = Math.sqrt(distSq);
-                            const pen = (minDist - dist) * 0.5;
-                            const nx = dx / dist;
-                            const ny = dy / dist;
-                            p1.pos.x += nx * pen;
-                            p1.pos.y += ny * pen;
-                            p2.pos.x -= nx * pen;
-                            p2.pos.y -= ny * pen;
-                            const vxRel = (p1.pos.x - p1.oldPos.x) - (p2.pos.x - p2.oldPos.x);
-                            const vyRel = (p1.pos.y - p1.oldPos.y) - (p2.pos.y - p2.oldPos.y);
-                            p1.pos.x -= vxRel * 0.1;
-                            p1.pos.y -= vyRel * 0.1;
-                        }
+        const minDist = 15;
+        for (const shape of this.shapes) {
+            if (shape === this.activeShape) continue;
+            for (const p1 of this.activeShape.particles) {
+                for (const p2 of shape.particles) {
+                    const dx = p1.pos.x - p2.pos.x;
+                    const dy = p1.pos.y - p2.pos.y;
+                    const distSq = dx * dx + dy * dy;
+                    if (distSq === 0 || distSq >= minDist * minDist) continue;
+                    const dist = Math.sqrt(distSq);
+                    const pen = (minDist - dist) * 0.5;
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+                    if (!p1.pinned) {
+                        p1.pos.x += nx * pen;
+                        p1.pos.y += ny * pen;
                     }
+                    if (!p2.pinned) {
+                        p2.pos.x -= nx * pen;
+                        p2.pos.y -= ny * pen;
+                    }
+                    const vxRel = (p1.pos.x - p1.oldPos.x) - (p2.pos.x - p2.oldPos.x);
+                    const vyRel = (p1.pos.y - p1.oldPos.y) - (p2.pos.y - p2.oldPos.y);
+                    p1.pos.x -= vxRel * 0.1;
+                    p1.pos.y -= vyRel * 0.1;
                 }
             }
         }
@@ -435,19 +422,24 @@ class Game {
         }
     }
     explodeSlice(y, height) {
-        for (let s of this.shapes) {
+        for (const shape of this.shapes) {
             const particlesToRemove = new Set();
-            s.particles.forEach(p => {
+            for (const p of shape.particles) {
                 if (p.pos.y >= y && p.pos.y < y + height) {
-                    p.pos.y = -1000;
-                    p.pinned = true;
+                    particlesToRemove.add(p);
                 }
-            });
-            s.sticks = s.sticks.filter(stick => 
+            }
+            if (particlesToRemove.size === 0) continue;
+            if (this.draggedParticle && particlesToRemove.has(this.draggedParticle)) {
+                this.draggedParticle = null;
+                this.isMouseDown = false;
+            }
+            shape.sticks = shape.sticks.filter(stick =>
                 !particlesToRemove.has(stick.p1) && !particlesToRemove.has(stick.p2)
             );
-            s.particles = s.particles.filter(p => !particlesToRemove.has(p));
+            shape.particles = shape.particles.filter(p => !particlesToRemove.has(p));
         }
+        this.shapes = this.shapes.filter(shape => shape.particles.length > 0);
     }
     update() {
         this.applyInput();
